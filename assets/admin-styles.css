@@ -1,0 +1,331 @@
+/* FriendShyft Admin Styles */
+
+/* General Admin Styles */
+.fs-admin-container {
+  max-width: 1400px;
+  margin: 20px 0;
+}
+
+/* Dashboard Stats */
+.fs-dashboard-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.fs-stat-card {
+  background: #fff;
+  border: 1px solid #c3c4c7;
+  border-radius: 4px;
+  padding: 20px;
+  text-align: center;
+  transition: box-shadow 0.3s;
+}
+
+.fs-stat-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.fs-stat-number {
+  font-size: 36px;
+  font-weight: bold;
+  color: #2271b1;
+  margin-bottom: 8px;
+}
+
+.fs-stat-label {
+  color: #50575e;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Tables */
+.fs-admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+.fs-admin-table th {
+  background: #f0f0f1;
+  font-weight: 600;
+  text-align: left;
+  padding: 12px;
+  border-bottom: 2px solid #c3c4c7;
+}
+
+.fs-admin-table td {
+  padding: 12px;
+  border-bottom: 1px solid #c3c4c7;
+}
+
+.fs-admin-table tr:hover {
+  background: #f6f7f7;
+}
+
+/* Forms */
+.fs-form-group {
+  margin-bottom: 20px;
+}
+
+.fs-form-group label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 5px;
+  color: #1d2327;
+}
+
+.fs-form-control {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #8c8f94;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.fs-form-control:focus {
+  outline: none;
+  border-color: #2271b1;
+  box-shadow: 0 0 0 1px #2271b1;
+}
+
+/* Badges */
+.fs-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.fs-badge-success {
+  background: #d4edda;
+  color: #155724;
+}
+
+.fs-badge-warning {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.fs-badge-danger {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.fs-badge-info {
+  background: #d1ecf1;
+  color: #0c5460;
+}
+
+.fs-badge-secondary {
+  background: #e2e3e5;
+  color: #383d41;
+}
+
+/* Buttons */
+.fs-btn {
+  display: inline-block;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.3s;
+}
+
+.fs-btn-primary {
+  background: #2271b1;
+  color: #fff;
+}
+
+.fs-btn-primary:hover {
+  background: #135e96;
+  color: #fff;
+}
+
+.fs-btn-secondary {
+  background: #dcdcde;
+  color: #2c3338;
+}
+
+.fs-btn-secondary:hover {
+  background: #c3c4c7;
+}
+
+.fs-btn-danger {
+  background: #d63638;
+  color: #fff;
+}
+
+.fs-btn-danger:hover {
+  background: #b32d2e;
+}
+
+.fs-btn-success {
+  background: #00a32a;
+  color: #fff;
+}
+
+.fs-btn-success:hover {
+  background: #008a20;
+}
+
+/* Cards */
+.fs-card {
+  background: #fff;
+  border: 1px solid #c3c4c7;
+  border-radius: 4px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.fs-card-header {
+  margin: -20px -20px 20px -20px;
+  padding: 15px 20px;
+  border-bottom: 1px solid #c3c4c7;
+  background: #f6f7f7;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.fs-card-body {
+  padding: 0;
+}
+
+.fs-card-footer {
+  margin: 20px -20px -20px -20px;
+  padding: 15px 20px;
+  border-top: 1px solid #c3c4c7;
+  background: #f6f7f7;
+}
+
+/* Alerts */
+.fs-alert {
+  padding: 12px 15px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.fs-alert-success {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.fs-alert-warning {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeeba;
+}
+
+.fs-alert-danger {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.fs-alert-info {
+  background: #d1ecf1;
+  color: #0c5460;
+  border: 1px solid #bee5eb;
+}
+
+/* Loading Spinner */
+.fs-spinner {
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #2271b1;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: fs-spin 1s linear infinite;
+  margin: 20px auto;
+}
+
+@keyframes fs-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Utility Classes */
+.fs-text-center {
+  text-align: center;
+}
+
+.fs-text-right {
+  text-align: right;
+}
+
+.fs-text-muted {
+  color: #646970;
+}
+
+.fs-mt-0 {
+  margin-top: 0;
+}
+.fs-mt-1 {
+  margin-top: 8px;
+}
+.fs-mt-2 {
+  margin-top: 16px;
+}
+.fs-mt-3 {
+  margin-top: 24px;
+}
+.fs-mt-4 {
+  margin-top: 32px;
+}
+
+.fs-mb-0 {
+  margin-bottom: 0;
+}
+.fs-mb-1 {
+  margin-bottom: 8px;
+}
+.fs-mb-2 {
+  margin-bottom: 16px;
+}
+.fs-mb-3 {
+  margin-bottom: 24px;
+}
+.fs-mb-4 {
+  margin-bottom: 32px;
+}
+
+.fs-p-0 {
+  padding: 0;
+}
+.fs-p-1 {
+  padding: 8px;
+}
+.fs-p-2 {
+  padding: 16px;
+}
+.fs-p-3 {
+  padding: 24px;
+}
+.fs-p-4 {
+  padding: 32px;
+}
+
+/* Responsive */
+@media (max-width: 782px) {
+  .fs-dashboard-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .fs-stat-card {
+    padding: 15px;
+  }
+
+  .fs-stat-number {
+    font-size: 28px;
+  }
+}

@@ -1,0 +1,185 @@
+2025-12-12 18:55:34 Manual signup debug:
+is_team: NO
+POST data: Array
+(
+    [_wpnonce_shift_20] => 4e33804689
+    [_wp_http_referer] => /wp-admin/admin.php?page=fs-manage-signups&opportunity_id=15
+    [action] => fs_manual_signup
+    [opportunity_id] => 15
+    [shift_id] => 20
+    [volunteer_id] => 4
+)
+
+
+2025-12-12 18:55:39 Manual signup debug:
+is_team: NO
+POST data: Array
+(
+    [_wpnonce_shift_20] => 4e33804689
+    [_wp_http_referer] => /wp-admin/admin.php?page=fs-manage-signups&opportunity_id=15&signup_added=1
+    [action] => fs_manual_signup
+    [opportunity_id] => 15
+    [shift_id] => 20
+    [volunteer_id] => 3
+)
+
+
+2025-12-12 18:56:38 Manual signup debug:
+is_team: NO
+POST data: Array
+(
+    [_wpnonce_shift_20] => 4e33804689
+    [_wp_http_referer] => /wp-admin/admin.php?page=fs-manage-signups&opportunity_id=15&signup_removed=1
+    [action] => fs_manual_signup
+    [opportunity_id] => 15
+    [shift_id] => 20
+    [volunteer_id] => 4
+)
+
+
+2025-12-12 19:51:15 Manual signup debug:
+is_team: NO
+POST data: Array
+(
+    [_wpnonce_shift_20] => 4e33804689
+    [_wp_http_referer] => /wp-admin/admin.php?page=fs-manage-signups&opportunity_id=15
+    [action] => fs_manual_signup
+    [opportunity_id] => 15
+    [shift_id] => 20
+    [volunteer_id] => 3
+)
+
+
+2025-12-12 19:51:29 Manual signup debug:
+is_team: NO
+POST data: Array
+(
+    [_wpnonce_shift_18] => 8ae758e7ca
+    [_wp_http_referer] => /wp-admin/admin.php?page=fs-manage-signups&opportunity_id=13
+    [action] => fs_manual_signup
+    [opportunity_id] => 13
+    [shift_id] => 18
+    [volunteer_id] => 3
+)
+
+
+2025-12-13 03:39:31 Manual signup debug:
+is_team: NO
+POST data: Array
+(
+    [_wpnonce_shift_18] => 9c4390f939
+    [_wp_http_referer] => /wp-admin/admin.php?page=fs-manage-signups&opportunity_id=13&signup_removed=1
+    [action] => fs_manual_signup
+    [opportunity_id] => 13
+    [shift_id] => 18
+    [volunteer_id] => 3
+)
+
+
+2025-12-13 10:51:13 Manual signup debug:
+is_team: NO
+POST data: Array
+(
+    [_wpnonce_shift_18] => 9c4390f939
+    [_wp_http_referer] => /wp-admin/admin.php?page=fs-manage-signups&opportunity_id=13&signup_removed=1
+    [action] => fs_manual_signup
+    [opportunity_id] => 13
+    [shift_id] => 18
+    [volunteer_id] => 3
+)
+
+
+2025-12-13 10:52:21 Manual signup debug:
+is_team: NO
+POST data: Array
+(
+    [_wpnonce_shift_17] => 671dd38702
+    [_wp_http_referer] => /wp-admin/admin.php?page=fs-manage-signups&opportunity_id=12
+    [action] => fs_manual_signup
+    [opportunity_id] => 12
+    [shift_id] => 17
+    [volunteer_id] => 3
+)
+
+
+2025-12-13 10:52:59 Manual signup debug:
+is_team: NO
+POST data: Array
+(
+    [_wpnonce_shift_17] => 671dd38702
+    [_wp_http_referer] => /wp-admin/admin.php?page=fs-manage-signups&opportunity_id=12&signup_removed=1
+    [action] => fs_manual_signup
+    [opportunity_id] => 12
+    [shift_id] => 17
+    [volunteer_id] => 3
+)
+
+
+2025-12-13 10:55:51 Manual signup debug:
+is_team: NO
+POST data: Array
+(
+    [_wpnonce_shift_17] => 671dd38702
+    [_wp_http_referer] => /wp-admin/admin.php?page=fs-manage-signups&opportunity_id=12&signup_removed=1
+    [action] => fs_manual_signup
+    [opportunity_id] => 12
+    [shift_id] => 17
+    [volunteer_id] => 3
+)
+
+
+2025-12-14 15:45:26 Manual signup debug:
+is_team: YES
+POST data: Array
+(
+    [_wpnonce_shift_team_16] => 446d6d8030
+    [_wp_http_referer] => /wp-admin/admin.php?page=fs-manage-signups&opportunity_id=11
+    [action] => fs_manual_signup
+    [opportunity_id] => 11
+    [shift_id] => 16
+    [team_id] => 3
+    [team_size] => 1
+)
+
+
+2025-12-14 16:07:52 Manual signup debug:
+is_team: YES
+POST data: Array
+(
+    [_wpnonce_shift_team_16] => 446d6d8030
+    [_wp_http_referer] => /wp-admin/admin.php?page=fs-manage-signups&opportunity_id=11&signup_removed=1
+    [action] => fs_manual_signup
+    [opportunity_id] => 11
+    [shift_id] => 16
+    [team_id] => 3
+    [team_size] => 3
+)
+
+
+2025-12-14 16:07:58 Manual signup debug:
+is_team: NO
+POST data: Array
+(
+    [_wpnonce_shift_16] => 446d6d8030
+    [_wp_http_referer] => /wp-admin/admin.php?page=fs-manage-signups&opportunity_id=11&team_added=1
+    [action] => fs_manual_signup
+    [opportunity_id] => 11
+    [shift_id] => 16
+    [volunteer_id] => 3
+)
+
+
+2025-12-17 16:37:15 Manual signup debug:
+is_team: YES
+POST data: Array
+(
+    [_wpnonce_shift_team_9] => a87fec3c28
+    [_wp_http_referer] => /wp-admin/admin.php?page=fs-manage-signups&opportunity_id=4
+    [action] => fs_manual_signup
+    [opportunity_id] => 4
+    [shift_id] => 9
+    [team_id] => 3
+    [team_size] => 3
+)
+
+
