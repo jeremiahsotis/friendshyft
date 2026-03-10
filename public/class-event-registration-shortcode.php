@@ -154,7 +154,7 @@ class FS_Event_Registration_Shortcode {
                         var now = new Date();
                         var age = now.getFullYear() - dob.getFullYear();
                         var m = now.getMonth() - dob.getMonth();
-                        if (m < 0 || (m === 0 && now.getDate() < dob.getDate())) age--;
+                        if (m < 0 || (m === 0 ? now.getDate() < dob.getDate() : false)) age--;
                         isMinor = age < 18;
                     }
                     guardianFieldset.style.display = isMinor ? 'block' : 'none';
@@ -187,7 +187,13 @@ class FS_Event_Registration_Shortcode {
                             updateGuardianVisibility();
                         } else {
                             message.className = 'fs-event-message error';
-                            message.textContent = result.data && result.data.message ? result.data.message : 'Registration failed.';
+                            var errorMessage = 'Registration failed.';
+                            if (result.data) {
+                                if (result.data.message) {
+                                    errorMessage = result.data.message;
+                                }
+                            }
+                            message.textContent = errorMessage;
                         }
                         message.style.display = 'block';
                     })
