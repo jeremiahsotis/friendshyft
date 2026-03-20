@@ -361,10 +361,21 @@ class FS_Teen_Event_Admin {
             self::redirect_with_notice('fs-teen-registrations', 'error', $result->get_error_message(), array('registration_id' => $registration_id));
         }
 
+        $message = 'Manual permission marked as signed.';
+        if (!empty($result['confirmed_count'])) {
+            $message .= ' ' . (int) $result['confirmed_count'] . ' held session(s) confirmed.';
+        }
+        if (!empty($result['promoted_count'])) {
+            $message .= ' ' . (int) $result['promoted_count'] . ' waitlisted session(s) promoted.';
+        }
+        if (empty($result['confirmed_count']) && empty($result['promoted_count'])) {
+            $message .= ' Future promotions will confirm immediately.';
+        }
+
         self::redirect_with_notice(
             'fs-teen-registrations',
             'updated',
-            'Manual permission marked as signed. Pending signups can now be confirmed.',
+            $message,
             array('registration_id' => $registration_id)
         );
     }
@@ -386,7 +397,11 @@ class FS_Teen_Event_Admin {
             self::redirect_with_notice('fs-teen-registrations', 'error', $result->get_error_message(), array('registration_id' => $registration_id));
         }
 
-        self::redirect_with_notice('fs-teen-registrations', 'updated', 'Waitlist entry promoted to pending hold.', array('registration_id' => $registration_id));
+        $message = ($result['signup_status'] ?? '') === 'confirmed'
+            ? 'Waitlist entry promoted and confirmed.'
+            : 'Waitlist entry promoted to pending hold.';
+
+        self::redirect_with_notice('fs-teen-registrations', 'updated', $message, array('registration_id' => $registration_id));
     }
 
     /**
@@ -498,12 +513,21 @@ class FS_Teen_Event_Admin {
         $permission_channel = self::get_permission_channel($registration);
         $is_manual_channel = $permission_channel === FS_Event_Registrations::PERMISSION_CHANNEL_MANUAL;
         $can_manage_manual_permission = $is_manual_channel && in_array($registration->permission_status, array('not_sent', 'sent'), true);
+        $detail_url = add_query_arg(
+            array(
+                'page' => 'fs-teen-registrations',
+                'registration_id' => (int) $registration->id,
+            ),
+            admin_url('admin.php')
+        );
+        $status_change_redirect = urlencode($detail_url);
         ?>
         <h2 style="margin-top:30px;">Registration Details #<?php echo (int) $registration->id; ?></h2>
         <p><strong>Teen:</strong> <?php echo esc_html($registration->teen_name); ?> (<?php echo esc_html($registration->teen_email); ?>)</p>
         <p><strong>Guardian:</strong> <?php echo esc_html($registration->guardian_email ?: '—'); ?></p>
         <p><strong>Permission:</strong> <?php echo esc_html($registration->permission_status); ?></p>
         <p><strong>Permission Channel:</strong> <?php echo esc_html($permission_channel); ?></p>
+        <p><strong>Volunteer Status:</strong> <?php echo esc_html($registration->volunteer_status ?: '—'); ?></p>
         <p><strong>Permission Expires:</strong> <?php echo !empty($registration->permission_expires_at) ? esc_html(date_i18n('M j, Y g:i A', strtotime($registration->permission_expires_at))) : '—'; ?></p>
         <p><strong>Envelope ID:</strong> <?php echo !empty($registration->signshyft_envelope_id) ? esc_html($registration->signshyft_envelope_id) : '—'; ?></p>
         <?php if ($is_manual_channel): ?>
@@ -573,7 +597,17 @@ class FS_Teen_Event_Admin {
                 <tr>
                     <td><?php echo esc_html($signup->title); ?></td>
                     <td><?php echo esc_html($signup->status); ?></td>
-                    <td>—</td>
+                    <td>
+                        <a class="button button-small" href="<?php echo esc_url(admin_url('admin.php?page=fs-manage-signups&opportunity_id=' . (int) $signup->opportunity_id)); ?>">Manage Session</a>
+                        <?php if ($signup->status === 'pending' && $registration->permission_status === FS_Event_Registrations::PERMISSION_SIGNED): ?>
+                            <a class="button button-small button-primary" href="<?php echo esc_url(wp_nonce_url(
+                                admin_url('admin-post.php?action=fs_change_signup_status&signup_id=' . (int) $signup->id . '&new_status=confirmed&redirect_to=' . $status_change_redirect),
+                                'fs_change_signup_status_' . (int) $signup->id
+                            )); ?>">Confirm</a>
+                        <?php elseif ($signup->status === 'pending'): ?>
+                            <span style="color:#856404;">Awaiting permission</span>
+                        <?php endif; ?>
+                    </td>
                 </tr>
             <?php endforeach; ?>
             <?php foreach ($waitlist as $entry): ?>
@@ -581,11 +615,12 @@ class FS_Teen_Event_Admin {
                     <td><?php echo esc_html($entry->title); ?></td>
                     <td>waitlist (<?php echo esc_html($entry->status); ?>)</td>
                     <td>
+                        <a class="button button-small" href="<?php echo esc_url(admin_url('admin.php?page=fs-manage-signups&opportunity_id=' . (int) $entry->opportunity_id)); ?>">Manage Session</a>
                         <?php if ($entry->status === 'waiting'): ?>
                             <a class="button button-small" href="<?php echo esc_url(wp_nonce_url(
                                 admin_url('admin-post.php?action=fs_teen_promote_waitlist&waitlist_id=' . (int) $entry->id . '&registration_id=' . (int) $registration->id),
                                 'fs_teen_promote_waitlist_' . (int) $entry->id
-                            )); ?>">Promote</a>
+                            )); ?>"><?php echo $registration->permission_status === FS_Event_Registrations::PERMISSION_SIGNED ? 'Promote to Confirmed' : 'Promote to Pending'; ?></a>
                         <?php else: ?>
                             —
                         <?php endif; ?>
@@ -611,8 +646,18 @@ class FS_Teen_Event_Admin {
      */
     private static function render_admin_notice_from_query() {
         $status = isset($_GET['notice_status']) ? sanitize_text_field($_GET['notice_status']) : '';
-        $message = isset($_GET['notice_message']) ? sanitize_text_field(wp_unslash($_GET['notice_message'])) : '';
+        $message = isset($_GET['notice_message']) ? sanitize_text_field(urldecode(wp_unslash($_GET['notice_message']))) : '';
         if (empty($status) || empty($message)) {
+            if (isset($_GET['status_changed'])) {
+                echo '<div class="notice notice-success is-dismissible"><p>Signup status changed successfully.</p></div>';
+                return;
+            }
+
+            if (isset($_GET['error_message'])) {
+                echo '<div class="notice notice-error is-dismissible"><p>' . esc_html(urldecode(wp_unslash($_GET['error_message']))) . '</p></div>';
+                return;
+            }
+
             return;
         }
 

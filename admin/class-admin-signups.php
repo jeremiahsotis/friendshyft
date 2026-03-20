@@ -428,7 +428,7 @@ class FS_Admin_Signups {
              JOIN {$wpdb->prefix}fs_volunteers v ON s.volunteer_id = v.id
              LEFT JOIN {$wpdb->prefix}fs_opportunity_shifts sh ON s.shift_id = sh.id
              WHERE s.opportunity_id = %d
-             AND s.status = 'confirmed'
+             AND s.status IN ('confirmed', 'pending')
              ORDER BY sh.display_order ASC, v.name ASC",
             $opportunity_id
         ));
@@ -1448,7 +1448,7 @@ class FS_Admin_Signups {
         // Check if already signed up
         $existing = $wpdb->get_var($wpdb->prepare(
             "SELECT id FROM {$wpdb->prefix}fs_signups
-             WHERE volunteer_id = %d AND opportunity_id = %d AND status = 'confirmed'",
+             WHERE volunteer_id = %d AND opportunity_id = %d AND status IN ('confirmed', 'pending')",
             $volunteer_id,
             $opportunity_id
         ));
@@ -1649,7 +1649,7 @@ class FS_Admin_Signups {
         // Check if already signed up
         $existing_signup = $wpdb->get_var($wpdb->prepare(
             "SELECT id FROM {$wpdb->prefix}fs_signups
-             WHERE volunteer_id = %d AND opportunity_id = %d AND status = 'confirmed'",
+             WHERE volunteer_id = %d AND opportunity_id = %d AND status IN ('confirmed', 'pending')",
             $volunteer_id,
             $opportunity_id
         ));

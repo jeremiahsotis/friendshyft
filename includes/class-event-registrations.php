@@ -672,7 +672,7 @@ class FS_Event_Registrations {
         global $wpdb;
 
         return $wpdb->get_row($wpdb->prepare(
-            "SELECT r.*, v.name AS teen_name, v.email AS teen_email, v.phone AS teen_phone, v.birthdate,
+            "SELECT r.*, v.name AS teen_name, v.email AS teen_email, v.phone AS teen_phone, v.birthdate, v.volunteer_status,
                     g.title AS event_group_title, g.signshyft_template_version_id, g.reminder_final_hours
              FROM {$wpdb->prefix}fs_event_registrations r
              LEFT JOIN {$wpdb->prefix}fs_volunteers v ON v.id = r.volunteer_id
@@ -741,11 +741,21 @@ class FS_Event_Registrations {
             return new WP_Error('no_capacity', 'No remaining spots available for this session.');
         }
 
+        $registration = null;
+        $signup_status = 'pending';
+        if (!empty($entry->registration_id)) {
+            self::ensure_volunteer_active((int) $entry->volunteer_id);
+            $registration = self::get_registration_with_context((int) $entry->registration_id);
+            if ($registration && self::should_confirm_after_permission_signed($registration)) {
+                $signup_status = 'confirmed';
+            }
+        }
+
         $signup_result = FS_Signup::create(
             (int) $entry->volunteer_id,
             (int) $entry->opportunity_id,
             !empty($entry->shift_id) ? (int) $entry->shift_id : null,
-            'pending',
+            $signup_status,
             !empty($entry->registration_id) ? (int) $entry->registration_id : null
         );
         if (empty($signup_result['success'])) {
@@ -760,8 +770,11 @@ class FS_Event_Registrations {
             array('%d')
         );
 
-        if (!empty($entry->registration_id)) {
-            $registration = self::get_registration_with_context($entry->registration_id);
+        if (!empty($entry->registration_id) && $signup_status === 'pending') {
+            if (!$registration) {
+                $registration = self::get_registration_with_context((int) $entry->registration_id);
+            }
+
             if ($registration && self::requires_permission((object) array('birthdate' => $registration->birthdate), $registration)) {
                 $permission_result = self::trigger_permission_with_fallback((int) $entry->registration_id);
                 if (is_wp_error($permission_result) && class_exists('FS_Audit_Log')) {
@@ -775,7 +788,10 @@ class FS_Event_Registrations {
             }
         }
 
-        return array('success' => true);
+        return array(
+            'success' => true,
+            'signup_status' => $signup_status,
+        );
     }
 
     /**
@@ -921,6 +937,23 @@ class FS_Event_Registrations {
             array('%d')
         );
 
+        $sync_result = self::sync_registration_after_permission_signed((int) $registration_id);
+        if (is_wp_error($sync_result)) {
+            if (class_exists('FS_Audit_Log')) {
+                FS_Audit_Log::log(
+                    'registration_sync_after_manual_permission_failed',
+                    'registration',
+                    (int) $registration_id,
+                    array('error_code' => $sync_result->get_error_code())
+                );
+            }
+
+            $sync_result = array(
+                'confirmed_count' => 0,
+                'promoted_count' => 0,
+            );
+        }
+
         $registration = self::get_registration_with_context($registration_id);
         if (class_exists('FS_Notifications') && $registration) {
             FS_Notifications::send_staff_permission_signed_notification($registration);
@@ -938,7 +971,11 @@ class FS_Event_Registrations {
             );
         }
 
-        return array('success' => true);
+        return array(
+            'success' => true,
+            'confirmed_count' => (int) ($sync_result['confirmed_count'] ?? 0),
+            'promoted_count' => (int) ($sync_result['promoted_count'] ?? 0),
+        );
     }
 
     /**
@@ -1159,6 +1196,9 @@ class FS_Event_Registrations {
             if (empty($existing->birthdate) && !empty($birthdate)) {
                 $update_data['birthdate'] = $birthdate;
             }
+            if (self::should_activate_volunteer_status($existing->volunteer_status ?? '')) {
+                $update_data['volunteer_status'] = 'Active';
+            }
 
             if (!empty($update_data)) {
                 $wpdb->update(
@@ -1182,7 +1222,7 @@ class FS_Event_Registrations {
                 'email' => $email,
                 'phone' => $phone,
                 'birthdate' => $birthdate,
-                'volunteer_status' => 'Pending',
+                'volunteer_status' => 'Active',
                 'access_token' => $access_token,
                 'created_date' => current_time('mysql'),
             ),
@@ -1494,6 +1534,16 @@ class FS_Event_Registrations {
         );
 
         if (isset($update['permission_status']) && $update['permission_status'] === self::PERMISSION_SIGNED) {
+            $sync_result = self::sync_registration_after_permission_signed((int) $registration_id);
+            if (is_wp_error($sync_result) && class_exists('FS_Audit_Log')) {
+                FS_Audit_Log::log(
+                    'registration_sync_after_webhook_permission_failed',
+                    'registration',
+                    (int) $registration_id,
+                    array('error_code' => $sync_result->get_error_code())
+                );
+            }
+
             $registration = self::get_registration_with_context($registration_id);
             if (class_exists('FS_Notifications') && $registration) {
                 FS_Notifications::send_staff_permission_signed_notification($registration);
@@ -1758,5 +1808,127 @@ class FS_Event_Registrations {
              WHERE id = %d",
             (int) $registration_id
         ));
+    }
+
+    /**
+     * Teen registration records should not strand volunteers in a pending account state.
+     */
+    private static function should_activate_volunteer_status($status) {
+        $normalized = strtolower(trim((string) $status));
+        return $normalized === '' || $normalized === 'pending';
+    }
+
+    /**
+     * Repair older teen registrations that were created with pending volunteer status.
+     */
+    private static function ensure_volunteer_active($volunteer_id) {
+        global $wpdb;
+
+        $volunteer = $wpdb->get_row($wpdb->prepare(
+            "SELECT id, volunteer_status
+             FROM {$wpdb->prefix}fs_volunteers
+             WHERE id = %d",
+            (int) $volunteer_id
+        ));
+
+        if (!$volunteer) {
+            return false;
+        }
+
+        if (!self::should_activate_volunteer_status($volunteer->volunteer_status ?? '')) {
+            return true;
+        }
+
+        $wpdb->update(
+            $wpdb->prefix . 'fs_volunteers',
+            array('volunteer_status' => 'Active'),
+            array('id' => (int) $volunteer_id),
+            array('%s'),
+            array('%d')
+        );
+
+        return true;
+    }
+
+    /**
+     * Signed permission means any newly opened teen spot can move straight to confirmed.
+     */
+    private static function should_confirm_after_permission_signed($registration) {
+        return !empty($registration) && ($registration->permission_status ?? '') === self::PERMISSION_SIGNED;
+    }
+
+    /**
+     * When permission lands, confirm held spots and grab any waitlisted spots that have opened.
+     */
+    private static function sync_registration_after_permission_signed($registration_id) {
+        global $wpdb;
+
+        $registration = self::get_registration_with_context((int) $registration_id);
+        if (!$registration) {
+            return new WP_Error('registration_not_found', 'Registration not found.');
+        }
+
+        self::ensure_volunteer_active((int) $registration->volunteer_id);
+
+        $pending_signup_ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT id
+             FROM {$wpdb->prefix}fs_signups
+             WHERE registration_id = %d
+               AND status = 'pending'",
+            (int) $registration_id
+        ));
+
+        if (!empty($pending_signup_ids)) {
+            $wpdb->update(
+                $wpdb->prefix . 'fs_signups',
+                array('status' => 'confirmed'),
+                array(
+                    'registration_id' => (int) $registration_id,
+                    'status' => 'pending',
+                ),
+                array('%s'),
+                array('%d', '%s')
+            );
+        }
+
+        $promoted_count = 0;
+        $waitlist_entries = $wpdb->get_results($wpdb->prepare(
+            "SELECT id, opportunity_id, shift_id
+             FROM {$wpdb->prefix}fs_waitlist
+             WHERE registration_id = %d
+               AND status = 'waiting'
+             ORDER BY joined_at ASC, id ASC",
+            (int) $registration_id
+        ));
+
+        foreach ($waitlist_entries as $entry) {
+            $shift_id = !empty($entry->shift_id) ? (int) $entry->shift_id : null;
+            if (!self::session_has_remaining_capacity((int) $entry->opportunity_id, $shift_id)) {
+                continue;
+            }
+
+            $promote_result = self::promote_waitlist_entry((int) $entry->id);
+            if (is_wp_error($promote_result)) {
+                if (class_exists('FS_Audit_Log')) {
+                    FS_Audit_Log::log(
+                        'registration_waitlist_sync_failed_after_permission',
+                        'registration',
+                        (int) $registration_id,
+                        array(
+                            'waitlist_id' => (int) $entry->id,
+                            'error_code' => $promote_result->get_error_code(),
+                        )
+                    );
+                }
+                continue;
+            }
+
+            $promoted_count++;
+        }
+
+        return array(
+            'confirmed_count' => count($pending_signup_ids),
+            'promoted_count' => $promoted_count,
+        );
     }
 }
