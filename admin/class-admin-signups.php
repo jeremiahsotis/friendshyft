@@ -1445,6 +1445,19 @@ class FS_Admin_Signups {
 
         global $wpdb;
 
+        $registration_id = null;
+        $signup_status = 'confirmed';
+        if (class_exists('FS_Event_Registrations')) {
+            $registration = FS_Event_Registrations::find_active_registration_for_opportunity($volunteer_id, $opportunity_id);
+            if ($registration) {
+                $registration_id = (int) $registration->id;
+                FS_Event_Registrations::reconcile_registration_entries($registration_id);
+                if (!in_array($registration->permission_status, array(FS_Event_Registrations::PERMISSION_SIGNED, FS_Event_Registrations::PERMISSION_NOT_REQUIRED), true)) {
+                    $signup_status = 'pending';
+                }
+            }
+        }
+
         // Check if already signed up
         $existing = $wpdb->get_var($wpdb->prepare(
             "SELECT id FROM {$wpdb->prefix}fs_signups
@@ -1472,7 +1485,7 @@ class FS_Admin_Signups {
         if (defined('WP_DEBUG') && WP_DEBUG) {
         error_log("Calling FS_Signup::create()");
         }
-        $result = FS_Signup::create($volunteer_id, $opportunity_id, $shift_id);
+        $result = FS_Signup::create($volunteer_id, $opportunity_id, $shift_id, $signup_status, $registration_id);
         if (defined('WP_DEBUG') && WP_DEBUG) {
         error_log("FS_Signup::create() result: " . print_r($result, true));
         }
@@ -1620,6 +1633,15 @@ class FS_Admin_Signups {
 
         global $wpdb;
 
+        $registration_id = null;
+        if (class_exists('FS_Event_Registrations')) {
+            $registration = FS_Event_Registrations::find_active_registration_for_opportunity($volunteer_id, $opportunity_id);
+            if ($registration) {
+                $registration_id = (int) $registration->id;
+                FS_Event_Registrations::reconcile_registration_entries($registration_id);
+            }
+        }
+
         // Get volunteer details
         $volunteer = $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM {$wpdb->prefix}fs_volunteers WHERE id = %d",
@@ -1672,6 +1694,7 @@ class FS_Admin_Signups {
                 'volunteer_id' => $volunteer_id,
                 'opportunity_id' => $opportunity_id,
                 'shift_id' => $shift_id,
+                'registration_id' => $registration_id,
                 'rank_score' => $rank_score,
                 'priority_level' => 'normal',
                 'joined_at' => current_time('mysql'),
@@ -1717,6 +1740,21 @@ class FS_Admin_Signups {
 
         if (!$waitlist_entry) {
             wp_die('Waitlist entry not found');
+        }
+
+        if (empty($waitlist_entry->registration_id) && class_exists('FS_Event_Registrations')) {
+            $registration = FS_Event_Registrations::find_active_registration_for_opportunity((int) $waitlist_entry->volunteer_id, $opportunity_id);
+            if ($registration) {
+                FS_Event_Registrations::reconcile_registration_entries((int) $registration->id);
+                $wpdb->update(
+                    "{$wpdb->prefix}fs_waitlist",
+                    array('registration_id' => (int) $registration->id),
+                    array('id' => $waitlist_id),
+                    array('%d'),
+                    array('%d')
+                );
+                $waitlist_entry->registration_id = (int) $registration->id;
+            }
         }
 
         if (!empty($waitlist_entry->registration_id) && class_exists('FS_Event_Registrations')) {

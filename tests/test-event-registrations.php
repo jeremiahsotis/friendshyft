@@ -232,4 +232,74 @@ class Test_Event_Registrations extends WP_UnitTestCase {
         $this->assertFalse($gate['blocked']);
         $this->assertSame('', $gate['message']);
     }
+
+    public function test_orphaned_group_signup_is_adopted_by_signed_registration_for_confirmation() {
+        global $wpdb;
+
+        $wpdb->insert(
+            "{$wpdb->prefix}fs_volunteers",
+            array(
+                'name' => 'Orphaned Teen',
+                'email' => 'orphaned-teen@example.com',
+                'birthdate' => '2010-08-01',
+                'volunteer_status' => 'Active',
+                'created_date' => current_time('mysql'),
+            )
+        );
+        $volunteer_id = (int) $wpdb->insert_id;
+
+        $wpdb->insert(
+            "{$wpdb->prefix}fs_event_registrations",
+            array(
+                'event_group_id' => $this->event_group_id,
+                'volunteer_id' => $volunteer_id,
+                'guardian_email' => 'guardian@example.com',
+                'status' => FS_Event_Registrations::STATUS_ACTIVE,
+                'permission_status' => FS_Event_Registrations::PERMISSION_SIGNED,
+                'permission_channel' => FS_Event_Registrations::PERMISSION_CHANNEL_MANUAL,
+                'created_at' => current_time('mysql'),
+                'updated_at' => current_time('mysql'),
+            )
+        );
+        $registration_id = (int) $wpdb->insert_id;
+
+        $wpdb->insert(
+            "{$wpdb->prefix}fs_signups",
+            array(
+                'volunteer_id' => $volunteer_id,
+                'opportunity_id' => $this->opportunity_id,
+                'status' => 'pending',
+                'signup_date' => current_time('mysql'),
+            )
+        );
+        $signup_id = (int) $wpdb->insert_id;
+
+        $signup = (object) array(
+            'id' => $signup_id,
+            'registration_id' => null,
+            'volunteer_id' => $volunteer_id,
+            'opportunity_id' => $this->opportunity_id,
+            'birthdate' => '2010-08-01',
+        );
+
+        $gate = FS_Event_Registrations::should_block_confirmation($signup);
+
+        $this->assertFalse($gate['blocked']);
+
+        $linked_registration_id = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT registration_id
+             FROM {$wpdb->prefix}fs_signups
+             WHERE id = %d",
+            $signup_id
+        ));
+        $this->assertSame($registration_id, $linked_registration_id);
+
+        $signup_status = $wpdb->get_var($wpdb->prepare(
+            "SELECT status
+             FROM {$wpdb->prefix}fs_signups
+             WHERE id = %d",
+            $signup_id
+        ));
+        $this->assertSame('confirmed', $signup_status);
+    }
 }

@@ -494,6 +494,9 @@ class FS_Teen_Event_Admin {
     private static function render_registration_details($registration) {
         global $wpdb;
 
+        FS_Event_Registrations::reconcile_registration_entries((int) $registration->id);
+        $registration = FS_Event_Registrations::get_registration_with_context((int) $registration->id);
+
         $signups = $wpdb->get_results($wpdb->prepare(
             "SELECT s.*, o.title
              FROM {$wpdb->prefix}fs_signups s

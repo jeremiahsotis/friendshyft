@@ -573,23 +573,27 @@ class FS_Event_Registrations {
     public static function should_block_confirmation($signup) {
         global $wpdb;
 
+        $registration = null;
         $registration_permission_allows_confirmation = false;
         if (!empty($signup->registration_id)) {
-            $registration = $wpdb->get_row($wpdb->prepare(
-                "SELECT permission_status FROM {$wpdb->prefix}fs_event_registrations WHERE id = %d",
-                (int) $signup->registration_id
-            ));
-
-            if ($registration && in_array($registration->permission_status, array(self::PERMISSION_SIGNED, self::PERMISSION_NOT_REQUIRED), true)) {
-                $registration_permission_allows_confirmation = true;
+            $registration = self::get_registration_for_confirmation_gate((int) $signup->registration_id);
+        } elseif (!empty($signup->volunteer_id) && !empty($signup->opportunity_id)) {
+            $registration = self::find_active_registration_for_opportunity((int) $signup->volunteer_id, (int) $signup->opportunity_id);
+            if ($registration && !empty($signup->id)) {
+                self::reconcile_registration_entries((int) $registration->id);
+                $registration = self::get_registration_for_confirmation_gate((int) $registration->id);
             }
+        }
 
-            if ($registration && !$registration_permission_allows_confirmation) {
-                return array(
-                    'blocked' => true,
-                    'message' => 'Guardian permission must be signed before this signup can be confirmed.',
-                );
-            }
+        if ($registration && in_array($registration->permission_status, array(self::PERMISSION_SIGNED, self::PERMISSION_NOT_REQUIRED), true)) {
+            $registration_permission_allows_confirmation = true;
+        }
+
+        if ($registration && !$registration_permission_allows_confirmation) {
+            return array(
+                'blocked' => true,
+                'message' => 'Guardian permission must be signed before this signup can be confirmed.',
+            );
         }
 
         $is_minor = self::is_minor_or_unknown($signup->birthdate ?? null, self::get_minor_age_threshold_default());
@@ -601,6 +605,98 @@ class FS_Event_Registrations {
         }
 
         return array('blocked' => false, 'message' => '');
+    }
+
+    /**
+     * Find the active teen registration governing a grouped opportunity.
+     */
+    public static function find_active_registration_for_opportunity($volunteer_id, $opportunity_id) {
+        global $wpdb;
+
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT r.*
+             FROM {$wpdb->prefix}fs_event_registrations r
+             INNER JOIN {$wpdb->prefix}fs_opportunities o ON o.event_group_id = r.event_group_id
+             WHERE r.volunteer_id = %d
+               AND o.id = %d
+               AND r.status = %s
+             ORDER BY r.created_at DESC
+             LIMIT 1",
+            (int) $volunteer_id,
+            (int) $opportunity_id,
+            self::STATUS_ACTIVE
+        ));
+    }
+
+    /**
+     * Adopt manual signups/waitlist entries back into their teen registration authority object.
+     */
+    public static function reconcile_registration_entries($registration_id) {
+        global $wpdb;
+
+        $registration = self::get_registration_with_context((int) $registration_id);
+        if (!$registration) {
+            return new WP_Error('registration_not_found', 'Registration not found.');
+        }
+
+        self::ensure_volunteer_active((int) $registration->volunteer_id);
+
+        $opportunity_ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT id
+             FROM {$wpdb->prefix}fs_opportunities
+             WHERE event_group_id = %d",
+            (int) $registration->event_group_id
+        ));
+
+        if (empty($opportunity_ids)) {
+            return array(
+                'linked_signups' => 0,
+                'linked_waitlist' => 0,
+            );
+        }
+
+        $placeholders = implode(', ', array_fill(0, count($opportunity_ids), '%d'));
+
+        $signup_query = "UPDATE {$wpdb->prefix}fs_signups
+                         SET registration_id = %d
+                         WHERE registration_id IS NULL
+                           AND volunteer_id = %d
+                           AND opportunity_id IN ($placeholders)
+                           AND status NOT IN ('cancelled', 'expired')";
+        $signup_params = array_merge(
+            array((int) $registration_id, (int) $registration->volunteer_id),
+            array_map('intval', $opportunity_ids)
+        );
+        $linked_signups = $wpdb->query($wpdb->prepare($signup_query, ...$signup_params));
+
+        $waitlist_query = "UPDATE {$wpdb->prefix}fs_waitlist
+                           SET registration_id = %d
+                           WHERE registration_id IS NULL
+                             AND volunteer_id = %d
+                             AND opportunity_id IN ($placeholders)
+                             AND status = 'waiting'";
+        $waitlist_params = array_merge(
+            array((int) $registration_id, (int) $registration->volunteer_id),
+            array_map('intval', $opportunity_ids)
+        );
+        $linked_waitlist = $wpdb->query($wpdb->prepare($waitlist_query, ...$waitlist_params));
+
+        if (self::should_confirm_after_permission_signed($registration)) {
+            $sync_result = self::sync_registration_after_permission_signed((int) $registration_id);
+            if (is_wp_error($sync_result) && class_exists('FS_Audit_Log')) {
+                FS_Audit_Log::log(
+                    'registration_reconcile_sync_failed',
+                    'registration',
+                    (int) $registration_id,
+                    array('error_code' => $sync_result->get_error_code())
+                );
+            }
+        }
+
+        return array(
+            'linked_signups' => max(0, (int) $linked_signups),
+            'linked_waitlist' => max(0, (int) $linked_waitlist),
+        );
     }
 
     /**
@@ -1809,6 +1905,20 @@ class FS_Event_Registrations {
         global $wpdb;
         return $wpdb->get_var($wpdb->prepare(
             "SELECT permission_expires_at
+             FROM {$wpdb->prefix}fs_event_registrations
+             WHERE id = %d",
+            (int) $registration_id
+        ));
+    }
+
+    /**
+     * Lightweight registration lookup for admin confirmation gates.
+     */
+    private static function get_registration_for_confirmation_gate($registration_id) {
+        global $wpdb;
+
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT id, permission_status
              FROM {$wpdb->prefix}fs_event_registrations
              WHERE id = %d",
             (int) $registration_id
