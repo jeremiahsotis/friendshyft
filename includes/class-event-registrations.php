@@ -573,13 +573,18 @@ class FS_Event_Registrations {
     public static function should_block_confirmation($signup) {
         global $wpdb;
 
+        $registration_permission_allows_confirmation = false;
         if (!empty($signup->registration_id)) {
             $registration = $wpdb->get_row($wpdb->prepare(
                 "SELECT permission_status FROM {$wpdb->prefix}fs_event_registrations WHERE id = %d",
                 (int) $signup->registration_id
             ));
 
-            if ($registration && !in_array($registration->permission_status, array(self::PERMISSION_SIGNED, self::PERMISSION_NOT_REQUIRED), true)) {
+            if ($registration && in_array($registration->permission_status, array(self::PERMISSION_SIGNED, self::PERMISSION_NOT_REQUIRED), true)) {
+                $registration_permission_allows_confirmation = true;
+            }
+
+            if ($registration && !$registration_permission_allows_confirmation) {
                 return array(
                     'blocked' => true,
                     'message' => 'Guardian permission must be signed before this signup can be confirmed.',
@@ -588,7 +593,7 @@ class FS_Event_Registrations {
         }
 
         $is_minor = self::is_minor_or_unknown($signup->birthdate ?? null, self::get_minor_age_threshold_default());
-        if ($is_minor) {
+        if ($is_minor && !$registration_permission_allows_confirmation) {
             return array(
                 'blocked' => true,
                 'message' => 'Under-18 or unknown-age volunteer requires guardian permission before confirmation.',
